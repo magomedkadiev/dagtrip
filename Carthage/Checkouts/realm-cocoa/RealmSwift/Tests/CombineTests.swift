@@ -21,9 +21,17 @@ import XCTest
 import Combine
 import RealmSwift
 
+class CombineIdentifiableObject: Object, ObjectKeyIdentifiable {
+    @objc dynamic var value = 0
+    @objc dynamic var child: CombineIdentifiableEmbeddedObject?
+}
+class CombineIdentifiableEmbeddedObject: EmbeddedObject, ObjectKeyIdentifiable {
+    @objc dynamic var value = 0
+}
+
 @available(OSX 10.15, watchOS 6.0, iOS 13.0, iOSApplicationExtension 13.0, OSXApplicationExtension 10.15, tvOS 13.0, *)
 extension Publisher {
-    public func signal(_ semaphore: DispatchSemaphore) -> Combine.Publishers.HandleEvents<Self> {
+    public func signal(_ semaphore: DispatchSemaphore) -> Publishers.HandleEvents<Self> {
         self.handleEvents(receiveOutput: { _ in semaphore.signal() })
     }
 }
@@ -39,8 +47,54 @@ func hasCombine() -> Bool {
     return false
 }
 
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+class ObjectIdentifiableTests: TestCase {
+    override class var defaultTestSuite: XCTestSuite {
+        if hasCombine() {
+            return super.defaultTestSuite
+        }
+        return XCTestSuite(name: "\(type(of: self))")
+    }
+
+    func testUnmanaged() {
+        let obj1 = CombineIdentifiableObject(value: [1])
+        let obj2 = CombineIdentifiableObject(value: [1])
+        let obj3 = CombineIdentifiableObject(value: [2])
+        XCTAssertEqual(obj1.id, obj1.id)
+        XCTAssertNotEqual(obj1.id, obj2.id)
+        XCTAssertNotEqual(obj2.id, obj3.id)
+        XCTAssertNotEqual(obj1.id, obj3.id)
+    }
+
+    func testManagedTopLevel() {
+        let realm = try! Realm()
+        let (obj1, obj2) = try! realm.write {
+            return (
+                realm.create(CombineIdentifiableObject.self, value: [1]),
+                realm.create(CombineIdentifiableObject.self, value: [2])
+            )
+        }
+        XCTAssertEqual(obj1.id, obj1.id)
+        XCTAssertNotEqual(obj1.id, obj2.id)
+        XCTAssertEqual(obj1.id, realm.objects(CombineIdentifiableObject.self).first!.id)
+        XCTAssertEqual(obj2.id, realm.objects(CombineIdentifiableObject.self).last!.id)
+    }
+
+    func testManagedEmbedded() {
+        let realm = try! Realm()
+        let (obj1, obj2) = try! realm.write {
+            return (
+                realm.create(CombineIdentifiableObject.self, value: [1, [1]]),
+                realm.create(CombineIdentifiableObject.self, value: [2, [2]])
+            )
+        }
+        XCTAssertEqual(obj1.child!.id, obj1.child!.id)
+        XCTAssertNotEqual(obj1.child!.id, obj2.child!.id)
+    }
+}
+
 @available(OSX 10.15, watchOS 6.0, iOS 13.0, iOSApplicationExtension 13.0, OSXApplicationExtension 10.15, tvOS 13.0, *)
-class CombineTestCase: TestCase {
+class CombinePublisherTestCase: TestCase {
     var realm: Realm!
     var cancellable: AnyCancellable?
     var notificationToken: NotificationToken?
@@ -60,8 +114,10 @@ class CombineTestCase: TestCase {
     }
 
     override func tearDown() {
-        if let cancellable = cancellable, let notificationToken = notificationToken {
+        if let cancellable = cancellable {
             cancellable.cancel()
+        }
+        if let notificationToken = notificationToken {
             notificationToken.invalidate()
         }
         realm.invalidate()
@@ -73,8 +129,7 @@ class CombineTestCase: TestCase {
 }
 
 @available(OSX 10.15, watchOS 6.0, iOS 13.0, iOSApplicationExtension 13.0, OSXApplicationExtension 10.15, tvOS 13.0, *)
-class CombineRealmTests: CombineTestCase {
-
+class CombineRealmTests: CombinePublisherTestCase {
     func testWillChangeLocalWrite() {
         var called = false
         cancellable = realm
@@ -139,8 +194,10 @@ class CombineRealmTests: CombineTestCase {
     }
 }
 
+// MARK: - Object
+
 @available(OSX 10.15, watchOS 6.0, iOS 13.0, iOSApplicationExtension 13.0, OSXApplicationExtension 10.15, tvOS 13.0, *)
-class CombineObjectPublisherTests: CombineTestCase {
+class CombineObjectPublisherTests: CombinePublisherTestCase {
     var obj: SwiftIntObject!
 
     override func setUp() {
@@ -645,8 +702,10 @@ private protocol CombineTestCollection {
     func appendObject()
 }
 
+// MARK: - List, MutableSet
+
 @available(OSX 10.15, watchOS 6.0, iOS 13.0, iOSApplicationExtension 13.0, OSXApplicationExtension 10.15, tvOS 13.0, *)
-private class CombineCollectionPublisherTests<Collection: RealmCollection>: CombineTestCase
+private class CombineCollectionPublisherTests<Collection: RealmCollection>: CombinePublisherTestCase
         where Collection: CombineTestCollection, Collection: RealmSubscribable {
     var collection: Collection!
 
@@ -1197,10 +1256,28 @@ extension List: CombineTestCollection where Element == SwiftIntObject {
     }
 }
 
+
 @available(OSX 10.15, watchOS 6.0, iOS 13.0, iOSApplicationExtension 13.0, OSXApplicationExtension 10.15, tvOS 13.0, *)
 class ManagedListPublisherTests: TestCase {
     override class var defaultTestSuite: XCTestSuite {
         return CombineCollectionPublisherTests<List<SwiftIntObject>>.testSuite("List")
+    }
+}
+
+extension MutableSet: CombineTestCollection where Element == SwiftIntObject {
+    static func getCollection(_ realm: Realm) -> MutableSet<Element> {
+        return try! realm.write { realm.create(SwiftMutableSetPropertyObject.self, value: []).intSet }
+    }
+
+    func appendObject() {
+        insert(realm!.create(Element.self, value: []))
+    }
+}
+
+@available(OSX 10.15, watchOS 6.0, iOS 13.0, iOSApplicationExtension 13.0, OSXApplicationExtension 10.15, tvOS 13.0, *)
+class ManagedMutableSetPublisherTests: TestCase {
+    override class var defaultTestSuite: XCTestSuite {
+        return CombineCollectionPublisherTests<MutableSet<SwiftIntObject>>.testSuite("MutableSet")
     }
 }
 
@@ -1235,6 +1312,551 @@ extension AnyRealmCollection: CombineTestCollection where Element == SwiftIntObj
 class AnyRealmCollectionPublisherTests: TestCase {
     override class var defaultTestSuite: XCTestSuite {
         return CombineCollectionPublisherTests<AnyRealmCollection<SwiftIntObject>>.testSuite("AnyRealmCollection")
+    }
+}
+
+// MARK: - Map
+
+@available(OSX 10.15, watchOS 6.0, iOS 13.0, iOSApplicationExtension 13.0, OSXApplicationExtension 10.15, tvOS 13.0, *)
+private class CombineMapPublisherTests<Collection: RealmKeyedCollection>: CombinePublisherTestCase
+        where Collection: CombineTestCollection, Collection: RealmSubscribable {
+    var collection: Collection!
+
+    class func testSuite(_ name: String) -> XCTestSuite {
+        if hasCombine() {
+            // By default this test suite's name will be the generic type's
+            // mangled name, which is an unreadable mess. It appears that the
+            // way to override it is with a subclass with an explicit name, which
+            // can't be done in pure Swift.
+            let cls: AnyClass = objc_allocateClassPair(CombineMapPublisherTests<Collection>.self, "CombinePublisherTests<\(name)>", 0)!
+            objc_registerClassPair(cls)
+            return cls.defaultTestSuite
+        }
+        return XCTestSuite(name: "CombinePublisherTests<\(name)>")
+    }
+
+    override func setUp() {
+        super.setUp()
+        collection = Collection.getCollection(realm)
+    }
+
+    func testWillChange() {
+        let exp = XCTestExpectation()
+        cancellable = collection.objectWillChange.sink {
+            exp.fulfill()
+        }
+        try! realm.write { collection.appendObject() }
+        wait(for: [exp], timeout: 1)
+    }
+
+    func testBasic() {
+        var exp = XCTestExpectation()
+        var calls = 0
+        cancellable = collection.collectionPublisher
+            .assertNoFailure()
+            .sink { c in
+                XCTAssertEqual(c.count, calls)
+                calls += 1
+                exp.fulfill()
+            }
+
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+            exp = XCTestExpectation()
+        }
+    }
+
+    func testBasicWithNotificationToken() {
+        var exp = XCTestExpectation()
+        var calls = 0
+        cancellable = collection.collectionPublisher
+            .saveToken(on: self, at: \.notificationToken)
+            .assertNoFailure()
+            .sink { c in
+                XCTAssertEqual(c.count, calls)
+                calls += 1
+                exp.fulfill()
+            }
+        XCTAssertNotNil(notificationToken)
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+            exp = XCTestExpectation()
+        }
+    }
+
+    func testBasicWithoutNotifying() {
+        var calls = 0
+        cancellable = collection
+            .collectionPublisher
+            .saveToken(on: self, at: \.notificationToken)
+            .assertNoFailure()
+            .sink { _ in
+                calls += 1
+            }
+        XCTAssertNotNil(notificationToken)
+        for _ in 0..<10 {
+            try! realm.write(withoutNotifying: [notificationToken!]) { collection.appendObject() }
+            XCTAssertEqual(calls, 1) // 1 for the initial notification
+        }
+    }
+
+    func checkChangeset(_ change: RealmMapChange<Collection>, calls: Int, frozen: Bool = false) {
+        switch change {
+        case .initial(let collection):
+            XCTAssertEqual(collection.isFrozen, frozen)
+            XCTAssertEqual(calls, 0)
+            XCTAssertEqual(collection.count, 0)
+        case .update(let collection, deletions: let deletions, insertions: let insertions, modifications: let modifications):
+            XCTAssertEqual(collection.isFrozen, frozen)
+            XCTAssertEqual(collection.count, calls)
+            // one insertion at a time
+            XCTAssertEqual(insertions.count, 1)
+            XCTAssertEqual(modifications, [])
+            XCTAssertEqual(deletions, [])
+        case .error(let error):
+            XCTFail("Unexpected error \(error)")
+        }
+    }
+
+    func testChangeSet() {
+        var exp = XCTestExpectation(description: "initial")
+        var calls = 0
+        cancellable = collection.changesetPublisher
+            .sink { change in
+                self.checkChangeset(change, calls: calls)
+                calls += 1
+                exp.fulfill()
+            }
+        wait(for: [exp], timeout: 10)
+
+        for _ in 0..<10 {
+            exp = XCTestExpectation(description: "change")
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+        }
+    }
+
+    func testChangeSetWithToken() {
+        var exp = XCTestExpectation(description: "initial")
+        var calls = 0
+        cancellable = collection
+            .changesetPublisher
+            .saveToken(on: self, at: \.notificationToken)
+            .sink { change in
+                self.checkChangeset(change, calls: calls)
+                calls += 1
+                exp.fulfill()
+            }
+        wait(for: [exp], timeout: 10)
+        XCTAssertNotNil(notificationToken)
+
+        for _ in 0..<10 {
+            exp = XCTestExpectation(description: "change")
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+        }
+    }
+
+    func testChangeSetWithoutNotifying() {
+        var calls = 0
+        cancellable = collection
+            .changesetPublisher
+            .saveToken(on: self, at: \.notificationToken)
+            .sink { _ in
+                calls += 1
+            }
+        XCTAssertNotNil(notificationToken)
+
+        for _ in 0..<10 {
+            try! realm.write(withoutNotifying: [notificationToken!]) { collection.appendObject() }
+            XCTAssertEqual(calls, 1) // 1 for the initial observation
+        }
+    }
+
+    func testSubscribeOn() {
+        let sema = DispatchSemaphore(value: 0)
+        var calls = 0
+        cancellable = collection
+            .collectionPublisher
+            .subscribe(on: subscribeOnQueue)
+            .assertNoFailure()
+            .sink { r in
+                XCTAssertEqual(r.count, calls)
+                calls += 1
+                sema.signal()
+        }
+        sema.wait()
+
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+            sema.wait()
+        }
+    }
+
+    func testSubscribeOnWithToken() {
+        let sema = DispatchSemaphore(value: 0)
+        var calls = 0
+        cancellable = collection
+            .collectionPublisher
+            .saveToken(on: self, at: \.notificationToken)
+            .subscribe(on: subscribeOnQueue)
+            .assertNoFailure()
+            .sink { r in
+                XCTAssertEqual(r.count, calls)
+                calls += 1
+                sema.signal()
+        }
+        sema.wait()
+        XCTAssertNotNil(notificationToken)
+
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+            sema.wait()
+        }
+    }
+
+    func testReceiveOn() {
+        var calls = 0
+        var exp = XCTestExpectation(description: "initial")
+        cancellable = collection.collectionPublisher
+            .receive(on: receiveOnQueue)
+            .assertNoFailure()
+            .sink { r in
+                XCTAssertEqual(r.count, calls)
+                calls += 1
+                exp.fulfill()
+        }
+        wait(for: [exp], timeout: 10)
+
+        for _ in 0..<10 {
+            exp = XCTestExpectation(description: "change")
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+        }
+    }
+
+    func testReceiveOnWithToken() {
+        var calls = 0
+        var exp = XCTestExpectation(description: "initial")
+        cancellable = collection
+            .collectionPublisher
+            .saveToken(on: self, at: \.notificationToken)
+            .receive(on: receiveOnQueue)
+            .assertNoFailure()
+            .sink { r in
+                XCTAssertEqual(r.count, calls)
+                calls += 1
+                exp.fulfill()
+        }
+        wait(for: [exp], timeout: 10)
+        XCTAssertNotNil(notificationToken)
+
+        for _ in 0..<10 {
+            exp = XCTestExpectation(description: "change")
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+        }
+    }
+
+    func testChangeSetSubscribeOn() {
+        var calls = 0
+        let sema = DispatchSemaphore(value: 0)
+        cancellable = collection.changesetPublisher
+            .subscribe(on: subscribeOnQueue)
+            .sink { change in
+                self.checkChangeset(change, calls: calls)
+                calls += 1
+                sema.signal()
+        }
+        sema.wait()
+
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+            sema.wait()
+        }
+    }
+
+    func testChangeSetSubscribeOnWithToken() {
+        var calls = 0
+        let sema = DispatchSemaphore(value: 0)
+        cancellable = collection
+            .changesetPublisher
+            .subscribe(on: subscribeOnQueue)
+            .saveToken(on: self, at: \.notificationToken)
+            .sink { change in
+                self.checkChangeset(change, calls: calls)
+                calls += 1
+                sema.signal()
+        }
+        sema.wait()
+        XCTAssertNotNil(notificationToken)
+
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+            sema.wait()
+        }
+    }
+
+    func testChangeSetReceiveOn() {
+        var exp = XCTestExpectation(description: "initial")
+        var calls = 0
+        cancellable = collection.changesetPublisher
+            .receive(on: receiveOnQueue)
+            .sink { change in
+                self.checkChangeset(change, calls: calls)
+                calls += 1
+                exp.fulfill()
+        }
+        wait(for: [exp], timeout: 10)
+
+        for _ in 0..<10 {
+            exp = XCTestExpectation(description: "change")
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+        }
+    }
+
+    func testChangeSetReceiveOnWithToken() {
+        var exp = XCTestExpectation(description: "initial")
+        var calls = 0
+        cancellable = collection
+            .changesetPublisher
+            .saveToken(on: self, at: \.notificationToken)
+            .receive(on: receiveOnQueue)
+            .sink { change in
+                self.checkChangeset(change, calls: calls)
+                calls += 1
+                exp.fulfill()
+        }
+        wait(for: [exp], timeout: 10)
+        XCTAssertNotNil(notificationToken)
+
+        for _ in 0..<10 {
+            exp = XCTestExpectation(description: "change")
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+        }
+    }
+
+    func testMakeThreadSafe() {
+        var calls = 0
+        var exp = XCTestExpectation(description: "initial")
+        cancellable = collection.collectionPublisher
+            .map { $0 }
+            .threadSafeReference()
+            .receive(on: receiveOnQueue)
+            .assertNoFailure()
+            .sink { r in
+                XCTAssertEqual(r.count, calls)
+                calls += 1
+                exp.fulfill()
+            }
+        wait(for: [exp], timeout: 10)
+
+        for _ in 0..<10 {
+            exp = XCTestExpectation(description: "change")
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+        }
+    }
+
+    func testMakeThreadSafeChangeset() {
+        var exp = XCTestExpectation(description: "initial")
+        var calls = 0
+        cancellable = collection.changesetPublisher
+            .map { $0 }
+            .threadSafeReference()
+            .receive(on: receiveOnQueue)
+            .sink { change in
+                self.checkChangeset(change, calls: calls)
+                calls += 1
+                exp.fulfill()
+        }
+        wait(for: [exp], timeout: 10)
+
+        for _ in 0..<10 {
+            exp = XCTestExpectation(description: "change")
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+        }
+    }
+
+    func testMakeThreadSafeWithChangesetToken() {
+        var calls = 0
+        var exp = XCTestExpectation(description: "initial")
+        cancellable = collection
+            .changesetPublisher
+            .saveToken(on: self, at: \.notificationToken)
+            .map { $0 }
+            .threadSafeReference()
+            .receive(on: receiveOnQueue)
+            .sink { change in
+                self.checkChangeset(change, calls: calls)
+                calls += 1
+                exp.fulfill()
+        }
+        wait(for: [exp], timeout: 10)
+        XCTAssertNotNil(notificationToken)
+
+        for _ in 0..<10 {
+            exp = XCTestExpectation(description: "change")
+            try! realm.write { collection.appendObject() }
+            wait(for: [exp], timeout: 10)
+        }
+    }
+
+    func testFrozen() {
+        let exp = XCTestExpectation()
+        cancellable = collection.collectionPublisher
+            .freeze()
+            .prefix(10)
+            .collect()
+            .assertNoFailure()
+            .sink { arr in
+                for (i, collection) in arr.enumerated() {
+                    XCTAssertTrue(collection.isFrozen)
+                    XCTAssertEqual(collection.count, i)
+                }
+                exp.fulfill()
+        }
+
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+        }
+        wait(for: [exp], timeout: 10)
+    }
+
+    func testFrozenChangeSetSubscribeOn() {
+        let sema = DispatchSemaphore(value: 0)
+        cancellable = collection.changesetPublisher
+            .subscribe(on: subscribeOnQueue)
+            .freeze()
+            .assertNoFailure()
+            .signal(sema)
+            .prefix(10)
+            .collect()
+            .sink { arr in
+                for (i, change) in arr.enumerated() {
+                    self.checkChangeset(change, calls: i, frozen: true)
+                }
+                sema.signal()
+            }
+
+        for _ in 0..<10 {
+            sema.wait()
+            try! realm.write { collection.appendObject() }
+        }
+        sema.wait()
+    }
+
+    func testFrozenChangeSetReceiveOn() {
+        let exp = XCTestExpectation()
+        cancellable = collection.changesetPublisher
+            .freeze()
+            .receive(on: receiveOnQueue)
+            .prefix(10)
+            .collect()
+            .assertNoFailure()
+            .sink { arr in
+                for (i, change) in arr.enumerated() {
+                    self.checkChangeset(change, calls: i, frozen: true)
+                }
+                exp.fulfill()
+        }
+
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+        }
+        wait(for: [exp], timeout: 10)
+    }
+
+    func testFrozenChangeSetSubscribeOnAndReceiveOn() {
+        let sema = DispatchSemaphore(value: 0)
+        cancellable = collection.changesetPublisher
+            .subscribe(on: subscribeOnQueue)
+            .freeze()
+            .receive(on: receiveOnQueue)
+            .signal(sema)
+            .prefix(10)
+            .collect()
+            .assertNoFailure()
+            .sink { arr in
+                for (i, change) in arr.enumerated() {
+                    self.checkChangeset(change, calls: i, frozen: true)
+                }
+                sema.signal()
+        }
+
+        for _ in 0..<10 {
+            sema.wait()
+            try! realm.write { collection.appendObject() }
+        }
+        sema.wait()
+    }
+
+    func testFrozenMakeThreadSafe() {
+        let sema = DispatchSemaphore(value: 0)
+        cancellable = collection.collectionPublisher
+            .freeze()
+            .threadSafeReference()
+            .receive(on: receiveOnQueue)
+            .prefix(10)
+            .collect()
+            .assertNoFailure()
+            .sink { arr in
+                for (i, collection) in arr.enumerated() {
+                    XCTAssertTrue(collection.isFrozen)
+                    XCTAssertEqual(collection.count, i)
+                }
+                sema.signal()
+            }
+
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+        }
+        sema.wait()
+    }
+
+    func testFrozenMakeThreadSafeChangeset() {
+        let exp = XCTestExpectation()
+        cancellable = collection.changesetPublisher
+            .freeze()
+            .threadSafeReference()
+            .receive(on: receiveOnQueue)
+            .prefix(10)
+            .collect()
+            .assertNoFailure()
+            .sink { arr in
+                for (i, change) in arr.enumerated() {
+                    self.checkChangeset(change, calls: i, frozen: true)
+                }
+                exp.fulfill()
+        }
+
+        for _ in 0..<10 {
+            try! realm.write { collection.appendObject() }
+        }
+        wait(for: [exp], timeout: 10)
+    }
+}
+
+extension Map: CombineTestCollection where Key == String, Value == SwiftIntObject? {
+    static func getCollection(_ realm: Realm) -> Map<Key, Value> {
+        return try! realm.write { realm.create(SwiftMapPropertyObject.self, value: []).intMap }
+    }
+
+    func appendObject() {
+        let key = UUID().uuidString
+        self[key] = realm!.create(SwiftIntObject.self, value: [])
+    }
+}
+
+@available(OSX 10.15, watchOS 6.0, iOS 13.0, iOSApplicationExtension 13.0, OSXApplicationExtension 10.15, tvOS 13.0, *)
+class ManagedMapPublisherTests: TestCase {
+    override class var defaultTestSuite: XCTestSuite {
+        return CombineMapPublisherTests<Map<String, SwiftIntObject?>>.testSuite("Map")
     }
 }
 

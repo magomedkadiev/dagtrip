@@ -20,21 +20,22 @@
 
 #import "RLMAccessor.h"
 #import "RLMArray_Private.hpp"
-#import "RLMListBase.h"
+#import "RLMDecimal128.h"
 #import "RLMObjectSchema_Private.hpp"
 #import "RLMObjectStore.h"
 #import "RLMObservation.hpp"
-#import "RLMOptionalBase.h"
 #import "RLMProperty_Private.h"
 #import "RLMRealm_Private.hpp"
 #import "RLMSchema_Private.h"
+#import "RLMSet_Private.hpp"
+#import "RLMSwiftCollectionBase.h"
 #import "RLMSwiftSupport.h"
 #import "RLMThreadSafeReference_Private.hpp"
 #import "RLMUtil.hpp"
 
-#import "object.hpp"
-#import "object_schema.hpp"
-#import "shared_realm.hpp"
+#import <realm/object-store/object.hpp>
+#import <realm/object-store/object_schema.hpp>
+#import <realm/object-store/shared_realm.hpp>
 
 using namespace realm;
 
@@ -110,7 +111,15 @@ static id validatedObjectForProperty(__unsafe_unretained id const obj,
     }
     if (prop.type == RLMPropertyTypeObject) {
         Class objectClass = schema[prop.objectClassName].objectClass;
-        if (prop.array) {
+        if (prop.dictionary) {
+            NSMutableDictionary *ret = [[NSMutableDictionary alloc] init];
+            for (id key in obj) {
+                id val = coerceToObjectType(obj[key], objectClass, schema);
+                [ret setObject:val forKey:key];
+            }
+            return ret;
+        }
+        else if (prop.collection) {
             NSMutableArray *ret = [[NSMutableArray alloc] init];
             for (id el in obj) {
                 [ret addObject:coerceToObjectType(el, objectClass, schema)];
@@ -118,6 +127,9 @@ static id validatedObjectForProperty(__unsafe_unretained id const obj,
             return ret;
         }
         return coerceToObjectType(obj, objectClass, schema);
+    }
+    else if (prop.type == RLMPropertyTypeDecimal128 && !prop.collection) {
+        return [[RLMDecimal128 alloc] initWithValue:obj];
     }
     return obj;
 }
@@ -181,11 +193,8 @@ id RLMCreateManagedAccessor(Class cls, RLMClassInfo *info) {
 // Generic Swift properties can't be dynamic, so KVO doesn't work for them by default
 - (id)valueForUndefinedKey:(NSString *)key {
     RLMProperty *prop = _objectSchema[key];
-    if (Class accessor = prop.swiftAccessor) {
-        return [accessor get:(char *)(__bridge void *)self + ivar_getOffset(prop.swiftIvar)];
-    }
-    if (Ivar ivar = prop.swiftIvar) {
-        return RLMCoerceToNil(object_getIvar(self, ivar));
+    if (Class swiftAccessor = prop.swiftAccessor) {
+        return RLMCoerceToNil([swiftAccessor get:prop on:self]);
     }
     return [super valueForUndefinedKey:key];
 }
@@ -193,23 +202,18 @@ id RLMCreateManagedAccessor(Class cls, RLMClassInfo *info) {
 - (void)setValue:(id)value forUndefinedKey:(NSString *)key {
     value = RLMCoerceToNil(value);
     RLMProperty *property = _objectSchema[key];
-    if (Ivar ivar = property.swiftIvar) {
-        if (property.array) {
-            value = RLMAsFastEnumeration(value);
-            RLMArray *array = [object_getIvar(self, ivar) _rlmArray];
-            [array removeAllObjects];
-
-            if (value) {
-                [array addObjects:validatedObjectForProperty(value, _objectSchema, property,
-                                                             RLMSchema.partialPrivateSharedSchema)];
-            }
+    if (property.collection) {
+        if (id enumerable = RLMAsFastEnumeration(value)) {
+            value = validatedObjectForProperty(value, _objectSchema, property,
+                                               RLMSchema.partialPrivateSharedSchema);
         }
-        else if (property.optional) {
-            RLMSetOptional(object_getIvar(self, ivar), value);
-        }
-        return;
     }
-    [super setValue:value forUndefinedKey:key];
+    if (auto swiftAccessor = property.swiftAccessor) {
+        [swiftAccessor set:property on:self to:value];
+    }
+    else {
+        [super setValue:value forUndefinedKey:key];
+    }
 }
 
 // overridden at runtime per-class for performance
@@ -234,7 +238,7 @@ id RLMCreateManagedAccessor(Class cls, RLMClassInfo *info) {
     }
 }
 
-+ (nullable NSArray<RLMProperty *> *)_getPropertiesWithInstance:(__unused id)obj {
++ (nullable NSArray<RLMProperty *> *)_getProperties {
     return nil;
 }
 
@@ -314,7 +318,7 @@ id RLMCreateManagedAccessor(Class cls, RLMClassInfo *info) {
     else if (_realm.isFrozen) {
         // The object key can never change for frozen objects, so that's usable
         // for objects without primary keys
-        return _row.get_key().value;
+        return static_cast<NSUInteger>(_row.get_key().value);
     }
     else {
         // Non-frozen objects without primary keys don't have any immutable
@@ -326,6 +330,10 @@ id RLMCreateManagedAccessor(Class cls, RLMClassInfo *info) {
 
 + (BOOL)shouldIncludeInDefaultSchema {
     return RLMIsObjectSubclass(self);
+}
+
++ (NSString *)primaryKey {
+    return nil;
 }
 
 + (NSString *)_realmObjectName {
@@ -340,12 +348,24 @@ id RLMCreateManagedAccessor(Class cls, RLMClassInfo *info) {
     return false;
 }
 
++ (bool)isEmbedded {
+    return false;
+}
+
 - (id)mutableArrayValueForKey:(NSString *)key {
     id obj = [self valueForKey:key];
     if ([obj isKindOfClass:[RLMArray class]]) {
         return obj;
     }
     return [super mutableArrayValueForKey:key];
+}
+
+- (id)mutableSetValueForKey:(NSString *)key {
+    id obj = [self valueForKey:key];
+    if ([obj isKindOfClass:[RLMSet class]]) {
+        return obj;
+    }
+    return [super mutableSetValueForKey:key];
 }
 
 - (void)addObserver:(id)observer
@@ -476,6 +496,24 @@ id RLMObjectFreeze(RLMObjectBase *obj) {
     return frozen;
 }
 
+id RLMObjectThaw(RLMObjectBase *obj) {
+    if (!obj->_realm && !obj.isInvalidated) {
+        @throw RLMException(@"Unmanaged objects cannot be frozen.");
+    }
+    RLMVerifyAttached(obj);
+    if (!obj->_realm.frozen) {
+        return obj;
+    }
+    RLMRealm *liveRealm = [obj->_realm thaw];
+    RLMObjectBase *live = RLMCreateManagedAccessor(obj.class, &liveRealm->_info[obj->_info->rlmObjectSchema.className]);
+    live->_row = liveRealm->_realm->import_copy_of(obj->_row);
+    if (!live->_row.is_valid()) {
+        return nil;
+    }
+    RLMInitializeSwiftAccessorGenerics(live);
+    return live;
+}
+
 id RLMValidatedValueForProperty(id object, NSString *key, NSString *className) {
     @try {
         return [object valueForKey:key];
@@ -592,6 +630,7 @@ struct ObjectChangeCallbackWrapper {
             (__bridge void *)self, _name, _previousValue, _value];
 }
 @end
+
 @interface RLMObjectNotificationToken : RLMNotificationToken
 @end
 
@@ -708,3 +747,9 @@ uint64_t RLMObjectBaseGetCombineId(__unsafe_unretained RLMObjectBase *const obj)
     }
     return reinterpret_cast<uint64_t>((__bridge void *)obj);
 }
+
+@implementation RealmSwiftObject
+@end
+
+@implementation RealmSwiftEmbeddedObject
+@end

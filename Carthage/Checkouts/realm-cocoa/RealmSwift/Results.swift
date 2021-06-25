@@ -37,6 +37,8 @@ extension Int32: MinMaxType {}
 extension Int64: MinMaxType {}
 extension Date: MinMaxType {}
 extension NSDate: MinMaxType {}
+extension Decimal128: MinMaxType {}
+extension AnyRealmValue: MinMaxType {}
 
 // MARK: AddableType
 
@@ -57,6 +59,8 @@ extension Int8: AddableType {}
 extension Int16: AddableType {}
 extension Int32: AddableType {}
 extension Int64: AddableType {}
+extension Decimal128: AddableType {}
+extension AnyRealmValue: AddableType {}
 
 /**
  `Results` is an auto-updating container type in Realm returned from object queries.
@@ -78,7 +82,7 @@ extension Int64: AddableType {}
 
  Results instances cannot be directly instantiated.
  */
-public struct Results<Element: RealmCollectionValue>: Equatable {
+@frozen public struct Results<Element: RealmCollectionValue>: Equatable {
 
     internal let rlmResults: RLMResults<AnyObject>
 
@@ -359,6 +363,10 @@ public struct Results<Element: RealmCollectionValue>: Equatable {
     public func freeze() -> Results {
         return Results(rlmResults.freeze())
     }
+
+    public func thaw() -> Results? {
+        return Results(rlmResults.thaw())
+    }
 }
 
 extension Results: RealmCollection {
@@ -367,13 +375,6 @@ extension Results: RealmCollection {
     /// Returns a `RLMIterator` that yields successive elements in the results.
     public func makeIterator() -> RLMIterator<Element> {
         return RLMIterator(collection: rlmResults)
-    }
-
-    /// :nodoc:
-    // swiftlint:disable:next identifier_name
-    public func _asNSFastEnumerator() -> Any {
-        return rlmResults
-
     }
 
     // MARK: Collection Support

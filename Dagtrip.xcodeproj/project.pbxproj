@@ -9,28 +9,34 @@
 /* Begin PBXBuildFile section */
 		39200305266CDE490083058C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39200304266CDE490083058C /* AppDelegate.swift */; };
 		39200307266CDE490083058C /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39200306266CDE490083058C /* SceneDelegate.swift */; };
-		39200309266CDE490083058C /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39200308266CDE490083058C /* ViewController.swift */; };
-		3920030C266CDE490083058C /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3920030A266CDE490083058C /* Main.storyboard */; };
 		3920030E266CDE4A0083058C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3920030D266CDE4A0083058C /* Assets.xcassets */; };
 		39200311266CDE4A0083058C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3920030F266CDE4A0083058C /* LaunchScreen.storyboard */; };
-		3920031B266CE0B00083058C /* ListCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3920031A266CE0B00083058C /* ListCell.swift */; };
 		39200339266D1D480083058C /* Realm.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 39200326266CED340083058C /* Realm.framework */; };
 		3920033C266D1D4B0083058C /* RealmSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3920032E266D18B30083058C /* RealmSwift.framework */; };
+		3978B582268655F300A6706C /* TabBar.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3978B581268655F300A6706C /* TabBar.storyboard */; };
+		3978B5842686563B00A6706C /* TabBarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3978B5832686563B00A6706C /* TabBarViewController.swift */; };
+		3978B5882686575A00A6706C /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3978B5872686575A00A6706C /* MainViewController.swift */; };
+		3978B58A2686576C00A6706C /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3978B5892686576C00A6706C /* Main.storyboard */; };
+		3978B58D2686597300A6706C /* TrendsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3978B58C2686597300A6706C /* TrendsViewController.swift */; };
+		3978B58F268659AC00A6706C /* Trends.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3978B58E268659AC00A6706C /* Trends.storyboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		39200301266CDE490083058C /* Dagtrip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Dagtrip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		39200304266CDE490083058C /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		39200306266CDE490083058C /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
-		39200308266CDE490083058C /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
-		3920030B266CDE490083058C /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		3920030D266CDE4A0083058C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		39200310266CDE4A0083058C /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		39200312266CDE4A0083058C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		3920031A266CE0B00083058C /* ListCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListCell.swift; sourceTree = "<group>"; };
 		39200321266CED000083058C /* Realm */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = Realm; path = Carthage/Build/iOS/Realm.framework/Realm; sourceTree = "<group>"; };
 		39200326266CED340083058C /* Realm.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Realm.framework; path = Carthage/Build/iOS/Realm.framework; sourceTree = "<group>"; };
 		3920032E266D18B30083058C /* RealmSwift.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = RealmSwift.framework; path = Carthage/Build/iOS/RealmSwift.framework; sourceTree = "<group>"; };
+		3978B581268655F300A6706C /* TabBar.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = TabBar.storyboard; sourceTree = "<group>"; };
+		3978B5832686563B00A6706C /* TabBarViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarViewController.swift; sourceTree = "<group>"; };
+		3978B5872686575A00A6706C /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
+		3978B5892686576C00A6706C /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
+		3978B58C2686597300A6706C /* TrendsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsViewController.swift; sourceTree = "<group>"; };
+		3978B58E268659AC00A6706C /* Trends.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Trends.storyboard; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,15 +72,14 @@
 		39200303266CDE490083058C /* Dagtrip */ = {
 			isa = PBXGroup;
 			children = (
-				398572812677A8CC009E454A /* New Group */,
+				3978B58B2686592F00A6706C /* Trends */,
+				3978B586268656F000A6706C /* MainVC */,
+				3978B585268656CF00A6706C /* Storyboards */,
+				3978B57E2686558200A6706C /* TabController */,
 				39200304266CDE490083058C /* AppDelegate.swift */,
 				39200306266CDE490083058C /* SceneDelegate.swift */,
-				39200308266CDE490083058C /* ViewController.swift */,
-				3920030A266CDE490083058C /* Main.storyboard */,
 				3920030D266CDE4A0083058C /* Assets.xcassets */,
-				3920030F266CDE4A0083058C /* LaunchScreen.storyboard */,
 				39200312266CDE4A0083058C /* Info.plist */,
-				3920031A266CE0B00083058C /* ListCell.swift */,
 			);
 			path = Dagtrip;
 			sourceTree = "<group>";
@@ -89,11 +94,39 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		398572812677A8CC009E454A /* New Group */ = {
+		3978B57E2686558200A6706C /* TabController */ = {
 			isa = PBXGroup;
 			children = (
+				3978B5832686563B00A6706C /* TabBarViewController.swift */,
 			);
-			path = "New Group";
+			path = TabController;
+			sourceTree = "<group>";
+		};
+		3978B585268656CF00A6706C /* Storyboards */ = {
+			isa = PBXGroup;
+			children = (
+				3978B581268655F300A6706C /* TabBar.storyboard */,
+				3920030F266CDE4A0083058C /* LaunchScreen.storyboard */,
+				3978B5892686576C00A6706C /* Main.storyboard */,
+				3978B58E268659AC00A6706C /* Trends.storyboard */,
+			);
+			path = Storyboards;
+			sourceTree = "<group>";
+		};
+		3978B586268656F000A6706C /* MainVC */ = {
+			isa = PBXGroup;
+			children = (
+				3978B5872686575A00A6706C /* MainViewController.swift */,
+			);
+			path = MainVC;
+			sourceTree = "<group>";
+		};
+		3978B58B2686592F00A6706C /* Trends */ = {
+			isa = PBXGroup;
+			children = (
+				3978B58C2686597300A6706C /* TrendsViewController.swift */,
+			);
+			path = Trends;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -154,9 +187,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3978B58F268659AC00A6706C /* Trends.storyboard in Resources */,
+				3978B582268655F300A6706C /* TabBar.storyboard in Resources */,
 				39200311266CDE4A0083058C /* LaunchScreen.storyboard in Resources */,
 				3920030E266CDE4A0083058C /* Assets.xcassets in Resources */,
-				3920030C266CDE490083058C /* Main.storyboard in Resources */,
+				3978B58A2686576C00A6706C /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -180,7 +215,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/local/bin/carthage copy-frameworks\n";
+			shellScript = "/usr/local/bin/carthage copy-frameworks\n/opt/homebrew/bin/carthage copy-frameworks\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -189,24 +224,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				39200309266CDE490083058C /* ViewController.swift in Sources */,
-				3920031B266CE0B00083058C /* ListCell.swift in Sources */,
 				39200305266CDE490083058C /* AppDelegate.swift in Sources */,
+				3978B5842686563B00A6706C /* TabBarViewController.swift in Sources */,
 				39200307266CDE490083058C /* SceneDelegate.swift in Sources */,
+				3978B58D2686597300A6706C /* TrendsViewController.swift in Sources */,
+				3978B5882686575A00A6706C /* MainViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXVariantGroup section */
-		3920030A266CDE490083058C /* Main.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				3920030B266CDE490083058C /* Base */,
-			);
-			name = Main.storyboard;
-			sourceTree = "<group>";
-		};
 		3920030F266CDE4A0083058C /* LaunchScreen.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -337,9 +365,11 @@
 		39200316266CDE4A0083058C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				EXCLUDED_ARCHS = arm64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Carthage/Build/iOS",
@@ -363,9 +393,11 @@
 		39200317266CDE4A0083058C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				EXCLUDED_ARCHS = arm64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Carthage/Build/iOS",

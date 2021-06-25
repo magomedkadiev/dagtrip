@@ -67,18 +67,11 @@ internal func gsub(pattern: String, template: String, string: String, error: NSE
                                            withTemplate: template)
 }
 
-internal func cast<U, V>(_ value: U, to: V.Type) -> V {
-    if let v = value as? V {
-        return v
-    }
-    return unsafeBitCast(value, to: to)
-}
-
-extension Object {
+extension ObjectBase {
     // Must *only* be used to call Realm Objective-C APIs that are exposed on `RLMObject`
     // but actually operate on `RLMObjectBase`. Do not expose cast value to user.
     internal func unsafeCastToRLMObject() -> RLMObject {
-        return unsafeBitCast(self, to: RLMObject.self)
+        return noWarnUnsafeBitCast(self, to: RLMObject.self)
     }
 }
 
@@ -114,8 +107,8 @@ internal protocol CustomObjectiveCBridgeable {
     var objCValue: Any { get }
 }
 
-// FIXME: needed with swift 3.2
-// Double isn't though?
+// `NSNumber as? Float` fails if the value can't be exactly represented as a float,
+// unlike the other NSNumber conversions
 extension Float: CustomObjectiveCBridgeable {
     internal static func bridging(objCValue: Any) -> Float {
         return (objCValue as! NSNumber).floatValue
@@ -159,7 +152,7 @@ extension Int64: CustomObjectiveCBridgeable {
 }
 extension Optional: CustomObjectiveCBridgeable {
     internal static func bridging(objCValue: Any) -> Optional {
-        if objCValue is NSNull {
+        if objCValue as AnyObject is NSNull {
             return nil
         } else {
             return .some(dynamicBridgeCast(fromObjectiveC: objCValue))
@@ -171,6 +164,28 @@ extension Optional: CustomObjectiveCBridgeable {
         } else {
             return NSNull()
         }
+    }
+}
+extension Decimal128: CustomObjectiveCBridgeable {
+    static func bridging(objCValue: Any) -> Decimal128 {
+        if let number = objCValue as? NSNumber {
+            return Decimal128(number: number)
+        }
+        return objCValue as! Decimal128
+    }
+    var objCValue: Any {
+        return self
+    }
+}
+extension AnyRealmValue: CustomObjectiveCBridgeable {
+    static func bridging(objCValue: Any) -> AnyRealmValue {
+        if let any = objCValue as? RLMValue {
+            return ObjectiveCSupport.convert(value: any)
+        }
+        throwRealmException("objCValue is not bridgable to AnyRealmValue")
+    }
+    var objCValue: Any {
+        return ObjectiveCSupport.convert(value: self) ?? NSNull()
     }
 }
 

@@ -19,9 +19,12 @@
 import Foundation
 import Realm
 import Realm.Dynamic
-import RealmTestSupport
 import RealmSwift
 import XCTest
+
+#if canImport(RealmTestSupport)
+import RealmTestSupport
+#endif
 
 func inMemoryRealm(_ inMememoryIdentifier: String) -> Realm {
     return try! Realm(configuration: Realm.Configuration(inMemoryIdentifier: inMememoryIdentifier))
@@ -197,6 +200,26 @@ class TestCase: RLMTestCaseBase {
     func assertMatches(_ block: @autoclosure () -> String, _ regexString: String, _ message: String? = nil,
                        fileName: String = #file, lineNumber: UInt = #line) {
         RLMAssertMatches(self, block, regexString, message, fileName, lineNumber)
+    }
+
+    /// Check that a `MutableSet` contains all expected elements.
+    func assertSetContains<T, U>(_ set: MutableSet<T>, keyPath: KeyPath<T, U>, items: [U]) where U: Hashable {
+        var itemMap = Dictionary(uniqueKeysWithValues: items.map { ($0, false)})
+        set.map { $0[keyPath: keyPath]}.forEach {
+            itemMap[$0] = items.contains($0)
+        }
+        // ensure all items are present in the set.
+        XCTAssertFalse(itemMap.values.contains(false))
+    }
+
+    /// Check that an `AnyRealmCollection` contains all expected elements.
+    func assertAnyRealmCollectionContains<T, U>(_ set: AnyRealmCollection<T>, keyPath: KeyPath<T, U>, items: [U]) where U: Hashable {
+        var itemMap = Dictionary(uniqueKeysWithValues: items.map { ($0, false)})
+        set.map { $0[keyPath: keyPath]}.forEach {
+            itemMap[$0] = items.contains($0)
+        }
+        // ensure all items are present in the set.
+        XCTAssertFalse(itemMap.values.contains(false))
     }
 
     private func realmFilePrefix() -> String {
